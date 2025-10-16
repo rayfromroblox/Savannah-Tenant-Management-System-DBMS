@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1 class="card-title">Dashboard Overview</h1>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.total_rooms }}</div>
+            <div class="stat-label">Total Rooms</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.occupied_rooms }}</div>
+            <div class="stat-label">Occupied Rooms</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.vacant_rooms }}</div>
+            <div class="stat-label">Vacant Rooms</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.total_tenants }}</div>
+            <div class="stat-label">Total Tenants</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.total_arrears|currency }}</div>
+            <div class="stat-label">Total Arrears</div>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <a href="{{ url_for('rooms') }}" class="btn">Manage Rooms</a>
+        <a href="{{ url_for('tenants') }}" class="btn">Manage Tenants</a>
+        <a href="{{ url_for('payments') }}" class="btn">Record Payment</a>
+        <a href="{{ url_for('analytics') }}" class="btn btn-secondary">View Analytics</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Recent Tenants</h2>
+    </div>
+    
+    {% if recent_tenants %}
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Room</th>
+                    <th>Move-in Date</th>
+                    <th>Balance</th>
+                    <th>Days Since Payment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tenant in recent_tenants %}
+                <tr>
+                    <td>{{ tenant.tenant_name }}</td>
+                    <td>{{ tenant.tenant_phone }}</td>
+                    <td>{{ tenant.room_number or 'No Room' }}</td>
+                    <td>{{ tenant.move_in_date }}</td>
+                    <td>
+                        {% set abs_balance = tenant.net_balance|abs %}
+                        <span class="status-badge 
+                            {% if tenant.balance_status == 'credit' %}status-positive
+                            {% elif tenant.balance_status == 'arrears' %}status-negative
+                            {% endif %}"
+                            title="{{ tenant.balance_status|capitalize }}">
+                            {{ abs_balance | currency }}
+                        </span>
+                        <small style="margin-left:4px; font-size:0.8em; color:#888;">
+                            {{ tenant.balance_status|capitalize }}
+                        </small>
+                    </td>
+                    <td>{{ tenant.days_since if tenant.days_since is not none else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; color: #666; padding: 2rem;">No tenants found.</p>
+    {% endif %}
+</div>
+
+{% if reminders %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Payment Reminders</h2>
+    </div>
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tenant</th>
+                    <th>Room</th>
+                    <th>Amount Remaining</th>
+                    <th>Days Overdue</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reminders %}
+                <tr>
+                    <td>{{ r.tenant_name }}</td>
+                    <td>{{ r.room_number or 'No Room' }}</td>
+                    <td>{{ r.amount_remaining|currency }}</td>
+                    <td>{{ r.days_overdue }}</td>
+                    <td>
+                        <span class="status-badge {% if r.level == 'pending' %}status-neutral{% elif r.level == 'warning' %}status-warning{% else %}status-negative{% endif %}">
+                            {{ r.level|capitalize }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

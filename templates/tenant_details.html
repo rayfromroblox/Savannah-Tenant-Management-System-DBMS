@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Tenant Details - {{ tenant.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1 class="card-title">{{ tenant.tenant_name }}</h1>
+        <p style="margin:0;color:#666;">Phone: {{ tenant.tenant_phone }} | ID: {{ tenant.id_number or 'N/A' }}</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ tenant.room_number or 'No Room' }}</div>
+            <div class="stat-label">Room</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ tenant.monthly_rent|currency }}</div>
+            <div class="stat-label">Monthly Rent</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ amount_remaining|currency }}</div>
+            <div class="stat-label">Due This Month</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ tenant.credit_balance|currency }}</div>
+            <div class="stat-label">Credit Balance</div>
+        </div>
+    </div>
+
+    <div class="table-container" style="margin-top:1rem;">
+        <table class="table">
+            <tbody>
+                <tr><th style="width:220px;">Move-in Date</th><td>{{ tenant.move_in_date }}</td></tr>
+                <tr><th>Last Payment Date</th><td>{{ tenant.last_payment_date or 'N/A' }}</td></tr>
+                <tr><th>Relative Name</th><td>{{ tenant.relative_name or 'N/A' }}</td></tr>
+                <tr><th>Relative Contact</th><td>{{ tenant.relative_contact or 'N/A' }}</td></tr>
+                <tr><th>Relative ID Number</th><td>{{ tenant.relative_id_number or 'N/A' }}</td></tr>
+                <tr><th>Remarks</th><td>{{ tenant.notes or '—' }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Payment History</h2>
+    </div>
+    {% if payments_history %}
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments_history %}
+                <tr>
+                    <td>{{ p.payment_date }}</td>
+                    <td>{{ p.amount|currency }}</td>
+                    <td>{{ p.notes or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align:center;color:#666;padding:2rem;">No payments recorded.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+

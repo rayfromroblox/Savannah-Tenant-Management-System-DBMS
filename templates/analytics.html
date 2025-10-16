@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1 class="card-title">Analytics & Reports</h1>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_arrears_amount|currency }}</div>
+            <div class="stat-label">Total Arrears</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ monthly_collection_amount|currency }}</div>
+            <div class="stat-label">This Month's Collection</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ total_credits_amount|currency }}</div>
+            <div class="stat-label">Total Credits</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ arrears_tenants|length }}</div>
+            <div class="stat-label">Tenants in Arrears</div>
+        </div>
+    </div>
+</div>
+
+<div style="display: flex; gap: 2rem; align-items: flex-start; margin: 2rem 0;">
+    <div style="flex: 0 0 300px; max-width: 300px;">
+        <h2 class="chart-title">Room Occupancy</h2>
+        <div class="chart-container" style="max-width: 300px; margin: 0 auto;">
+            <canvas id="occupancyChart" width="200" height="120"></canvas>
+        </div>
+    </div>
+    <div style="flex: 1 1 0; min-width: 320px;">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Tenants in Arrears</h2>
+            </div>
+            {% if arrears_tenants %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Room</th>
+                            <th>Monthly Rent</th>
+                            <th>Total Paid</th>
+                            <th>Arrears</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tenant in arrears_tenants %}
+                        <tr>
+                            <td>{{ tenant.tenant_name }}</td>
+                            <td>{{ tenant.tenant_phone }}</td>
+                            <td>{{ tenant.room_number or 'No Room' }}</td>
+                            <td>{{ tenant.monthly_rent|currency }}</td>
+                            <td>{{ tenant.total_payments|currency }}</td>
+                            <td>
+                                <span class="status-badge status-negative">
+                                    {{ tenant.arrears|currency }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{{ url_for('add_payment') }}?tenant_id={{ tenant.tenant_id }}" class="btn btn-sm">Record Payment</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align: center; color: #666; padding: 2rem;">No tenants in arrears. Great job!</p>
+            {% endif %}
+        </div>
+        <div class="card" style="margin-top: 2rem;">
+            <div class="card-header">
+                <h2 class="card-title">Excess Payments (Overpaid Tenants)</h2>
+            </div>
+            {% if overpaid_tenants %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Room</th>
+                            <th>Monthly Rent</th>
+                            <th>Total Paid</th>
+                            <th>Excess Amount (KES)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in overpaid_tenants %}
+                        <tr>
+                            <td>{{ t.tenant_name }}</td>
+                            <td>{{ t.tenant_phone }}</td>
+                            <td>{{ t.room_number or 'No Room' }}</td>
+                            <td>{{ t.monthly_rent|currency }}</td>
+                            <td>{{ t.total_payments|currency }}</td>
+                            <td>
+                                <span class="status-badge status-positive">
+                                    {{ t.excess|currency }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{{ url_for('add_payment') }}?tenant_id={{ t.tenant_id }}" class="btn btn-sm">Record Payment</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align: center; color: #565555; padding: 2rem;">No tenants with excess payments.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Room Occupancy Chart
+const occupancyCtx = document.getElementById('occupancyChart').getContext('2d');
+const occupancyData = {% if room_stats %}{
+    {% for stat in room_stats %}
+    '{{ stat.status }}': {{ stat.count }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+}{% else %}{}{% endif %};
+
+new Chart(occupancyCtx, {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(occupancyData),
+        datasets: [{
+            data: Object.values(occupancyData),
+            backgroundColor: [
+                '#28a745',
+                '#dc3545'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Monthly Collection Chart removed as per request
+</script>
+{% endblock %}

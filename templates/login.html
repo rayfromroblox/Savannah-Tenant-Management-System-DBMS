@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1 class="login-title">Savannah Apartments</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" id="username" name="username" class="form-input" required>
+        </div>
+        <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" id="password" name="password" class="form-input" required>
+        </div>
+        <button type="submit" class="btn" style="width: 100%;">Login</button>
+    </form>
+    <div style="margin-top: 1rem; text-align: center; color: #666; font-size: 0.9rem;">
+        Default credentials: admin / admin123
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Tenant Details - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+        <h1 class="card-title">Tenant Details</h1>
+        <form method="GET" action="{{ url_for('tenant_details_list') }}" style="display:flex;gap:.5rem;align-items:center;">
+            <input type="text" name="q" value="{{ q }}" class="form-input" placeholder="Search name, phone, or room" style="min-width:240px;">
+            <button type="submit" class="btn btn-secondary">Search</button>
+        </form>
+    </div>
+
+    {% if tenants %}
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Room</th>
+                    <th>Move-in Date</th>
+                    <th>Due Now</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tenants %}
+                <tr>
+                    <td>{{ t.tenant_name }}</td>
+                    <td>{{ t.tenant_phone }}</td>
+                    <td>{{ t.room_number or 'No Room' }}</td>
+                    <td>{{ t.move_in_date }}</td>
+                    <td>{{ t.current_balance|currency }}</td>
+                    <td><a class="btn btn-sm" href="{{ url_for('tenant_details_view', tenant_id=t.tenant_id) }}">View</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align:center;color:#666;padding:2rem;">No tenants found.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+

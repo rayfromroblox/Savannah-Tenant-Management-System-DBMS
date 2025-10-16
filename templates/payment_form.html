@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Record Payment - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card-header">
+        <h1 class="card-title">Record New Payment</h1>
+    </div>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="tenant_id" class="form-label">Select Tenant</label>
+            <select id="tenant_id" name="tenant_id" class="form-select" required>
+                <option value="">Choose a tenant</option>
+                {% for tenant in tenants %}
+                <option value="{{ tenant.tenant_id }}" {% if request.args.get('tenant_id') and request.args.get('tenant_id')|int == tenant.tenant_id %}selected{% endif %}>
+                    {{ tenant.tenant_name }} {% if tenant.room_number %}(Room {{ tenant.room_number }}){% endif %} - Due Now: {{ tenant.current_balance|currency }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="amount" class="form-label">Payment Amount (KES)</label>
+            <input type="number" id="amount" name="amount" class="form-input" 
+                   step="0.01" min="0.01" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="payment_date" class="form-label">Payment Date</label>
+            <input type="date" id="payment_date" name="payment_date" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="notes" class="form-label">Notes (Optional)</label>
+            <textarea id="notes" name="notes" class="form-textarea" 
+                      placeholder="Add any notes about this payment..."></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('payments') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn">Record Payment</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Set today's date as default
+document.getElementById('payment_date').value = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

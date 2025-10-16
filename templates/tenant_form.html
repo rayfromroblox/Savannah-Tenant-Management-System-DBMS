@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{% if tenant %}Edit Tenant{% else %}Add Tenant{% endif %} - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card-header">
+        <h1 class="card-title">{% if tenant %}Edit Tenant{% else %}Add New Tenant{% endif %}</h1>
+    </div>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="tenant_name" class="form-label">Tenant Name</label>
+            <input type="text" id="tenant_name" name="tenant_name" class="form-input" 
+                   value="{{ tenant.tenant_name if tenant else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="id_number" class="form-label">ID Number</label>
+            <input type="text" id="id_number" name="id_number" class="form-input" value="{{ tenant.id_number if tenant else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="tenant_phone" class="form-label">Phone Number</label>
+            <input type="tel" id="tenant_phone" name="tenant_phone" class="form-input" 
+                   value="{{ tenant.tenant_phone if tenant else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="room_id" class="form-label">Room Assignment</label>
+            <select id="room_id" name="room_id" class="form-select">
+                <option value="">No Room Assignment</option>
+                {% for room in rooms %}
+                <option value="{{ room.room_id }}" 
+                        {% if tenant and tenant.room_id == room.room_id %}selected{% endif %}
+                        {% if room.status == 'occupied' and not (tenant and tenant.room_id == room.room_id) %}disabled{% endif %}>
+                    {{ room.room_number }} - {{ room.room_type }} - {{ room.monthly_rent|currency }} ({% if room.status == 'occupied' %}Occupied{% else %}Available{% endif %})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="move_in_date" class="form-label">Move-in Date</label>
+            <input type="date" id="move_in_date" name="move_in_date" class="form-input" 
+                   value="{{ tenant.move_in_date if tenant else '' }}" required>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="relative_name" class="form-label">Relative Name</label>
+                <input type="text" id="relative_name" name="relative_name" class="form-input" value="{{ tenant.relative_name if tenant else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="relative_contact" class="form-label">Relative Contact</label>
+                <input type="text" id="relative_contact" name="relative_contact" class="form-input" value="{{ tenant.relative_contact if tenant else '' }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="relative_id_number" class="form-label">Relative ID Number</label>
+            <input type="text" id="relative_id_number" name="relative_id_number" class="form-input" value="{{ tenant.relative_id_number if tenant else '' }}">
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('tenants') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn">{% if tenant %}Update Tenant{% else %}Add Tenant{% endif %}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
