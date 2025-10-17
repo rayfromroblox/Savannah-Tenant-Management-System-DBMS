@@ -763,6 +763,10 @@ def delete_tenant(tenant_id):
     # Update room status
     update_room_status()
     
+    # Invalidate relevant caches
+    cache['rooms'] = {'data': None, 'timestamp': 0}
+    cache['tenants'] = {'data': None, 'timestamp': 0}
+    
     conn.close()
     
     flash('Tenant deleted successfully!', 'success')

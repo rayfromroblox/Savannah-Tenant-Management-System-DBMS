@@ -99,7 +99,128 @@
             console.log('Theme toggle initialized');
         });
     })();
+
+    // Custom Confirmation Modal Functions
+    let currentConfirmCallback = null;
+    
+    function showConfirmationModal(message, details, onConfirm) {
+        const modal = document.getElementById('confirmationModal');
+        const messageEl = modal.querySelector('.confirmation-message');
+        const detailsEl = modal.querySelector('.confirmation-details');
+        const confirmBtn = modal.querySelector('#confirmButton');
+        
+        // Store callback for later use
+        currentConfirmCallback = onConfirm;
+        
+        // Update content efficiently
+        messageEl.textContent = message;
+        detailsEl.textContent = details;
+        
+        // Show modal with optimized animation
+        modal.style.display = 'flex';
+        // Use requestAnimationFrame for smooth animation
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+            confirmBtn.focus();
+        });
+    }
+    
+    // Handle confirm button click
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'confirmButton') {
+            closeConfirmationModal();
+            if (currentConfirmCallback) {
+                currentConfirmCallback();
+                currentConfirmCallback = null;
+            }
+        }
+    });
+    
+    // Handle delete button clicks with event delegation
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('delete-btn')) {
+            e.preventDefault();
+            const message = e.target.getAttribute('data-message');
+            const details = e.target.getAttribute('data-details');
+            const url = e.target.getAttribute('data-url');
+            
+            showConfirmationModal(message, details, function() {
+                window.location.href = url;
+            });
+        }
+    });
+    
+    // Add smooth page transitions
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add transition class to main content
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        }
+        
+        // Add loading state to navigation links
+        const navLinks = document.querySelectorAll('.nav-link:not(.logout)');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                // Add loading state
+                this.style.opacity = '0.7';
+                this.style.transform = 'scale(0.98)';
+                
+                // Add page transition effect
+                if (mainContent) {
+                    mainContent.style.opacity = '0.8';
+                    mainContent.style.transform = 'translateY(10px)';
+                }
+            });
+        });
+    });
+    
+    function closeConfirmationModal() {
+        const modal = document.getElementById('confirmationModal');
+        modal.classList.remove('show');
+        // Use shorter timeout for faster response
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+    }
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeConfirmationModal();
+        }
+    });
+    
+    // Close modal on backdrop click
+    document.getElementById('confirmationModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeConfirmationModal();
+        }
+    });
     </script>
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmationModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content confirmation-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Action</h3>
+                <button type="button" class="modal-close" onclick="closeConfirmationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <p class="confirmation-message">Are you sure you want to perform this action?</p>
+                <p class="confirmation-details">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeConfirmationModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmButton">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>
