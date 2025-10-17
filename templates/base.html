@@ -41,26 +41,62 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Modern JavaScript Application -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- Enhanced Theme Management -->
     <script>
     (function() {
-        try {
-            var stored = localStorage.getItem('theme');
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (stored === 'dark' || (!stored && prefersDark)) {
-                document.documentElement.classList.add('dark');
+        // Initialize theme on page load
+        function initTheme() {
+            try {
+                var stored = localStorage.getItem('theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (stored === 'dark' || (!stored && prefersDark)) {
+                    document.documentElement.classList.add('dark');
+                }
+            } catch (e) {
+                console.warn('Theme initialization failed:', e);
             }
-        } catch (e) {}
+        }
 
+        // Initialize theme immediately
+        initTheme();
+
+        // Enhanced theme toggle with smooth transitions
         document.addEventListener('DOMContentLoaded', function() {
             var toggle = document.getElementById('themeToggle');
-            if (!toggle) return;
-            toggle.addEventListener('click', function() {
+            if (!toggle) {
+                console.warn('Theme toggle button not found');
+                return;
+            }
+            
+            // Remove any existing event listeners
+            toggle.replaceWith(toggle.cloneNode(true));
+            toggle = document.getElementById('themeToggle');
+            
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 var root = document.documentElement;
                 var isDark = root.classList.toggle('dark');
+                
+                // Add transition class for smooth theme change
+                root.classList.add('theme-transitioning');
+                setTimeout(() => {
+                    root.classList.remove('theme-transitioning');
+                }, 300);
+                
                 try {
                     localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                } catch (e) {}
+                    console.log('Theme changed to:', isDark ? 'dark' : 'light');
+                } catch (e) {
+                    console.warn('Could not save theme preference:', e);
+                }
             });
+            
+            console.log('Theme toggle initialized');
         });
     })();
     </script>

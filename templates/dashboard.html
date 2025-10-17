@@ -32,10 +32,10 @@
     </div>
     
     <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        <a href="{{ url_for('rooms') }}" class="btn">Manage Rooms</a>
-        <a href="{{ url_for('tenants') }}" class="btn">Manage Tenants</a>
-        <a href="{{ url_for('payments') }}" class="btn">Record Payment</a>
-        <a href="{{ url_for('analytics') }}" class="btn btn-secondary">View Analytics</a>
+        <a href="{{ url_for('rooms') }}" class="btn" data-loading="true">Manage Rooms</a>
+        <a href="{{ url_for('tenants') }}" class="btn" data-loading="true">Manage Tenants</a>
+        <a href="{{ url_for('payments') }}" class="btn" data-loading="true">Record Payment</a>
+        <a href="{{ url_for('analytics') }}" class="btn btn-secondary" data-loading="true">View Analytics</a>
     </div>
 </div>
 
@@ -123,4 +123,28 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for action buttons
+    const actionButtons = document.querySelectorAll('.btn[data-loading="true"]');
+    actionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Show loading state
+            this.classList.add('btn-loading');
+            this.style.pointerEvents = 'none';
+            
+            // Remove loading state after navigation
+            setTimeout(() => {
+                this.classList.remove('btn-loading');
+                this.style.pointerEvents = 'auto';
+            }, 1000);
+        });
+    });
+
+    // Table hover effects are handled by CSS only for better performance
+});
+</script>
 {% endblock %}

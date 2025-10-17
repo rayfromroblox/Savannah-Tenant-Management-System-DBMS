@@ -3,10 +3,18 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import sqlite3
 import os
 from datetime import datetime, date, timedelta
-from functools import wraps
+from functools import wraps, lru_cache
+import time
 
 app = Flask(__name__)
 app.secret_key = 'hostel_management_secret_key_2024'
+
+# Simple in-memory cache for performance
+cache = {
+    'rooms': {'data': None, 'timestamp': 0},
+    'stats': {'data': None, 'timestamp': 0}
+}
+CACHE_DURATION = 30  # seconds
 
 # --- Tenant details JSON endpoint for modal ---
 # (define only once, after app is defined)
@@ -80,9 +88,26 @@ def currency_filter(value):
 DATABASE = 'hostel.db'
 
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=20.0)
     conn.row_factory = sqlite3.Row
+    # Performance optimizations
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA cache_size=10000')
+    conn.execute('PRAGMA temp_store=MEMORY')
     return conn
+
+def get_cached_data(key):
+    """Get data from cache if it's still valid"""
+    if key in cache:
+        data, timestamp = cache[key]['data'], cache[key]['timestamp']
+        if time.time() - timestamp < CACHE_DURATION:
+            return data
+    return None
+
+def set_cached_data(key, data):
+    """Set data in cache with current timestamp"""
+    cache[key] = {'data': data, 'timestamp': time.time()}
 
 def init_db():
     conn = get_db_connection()
@@ -184,6 +209,15 @@ def init_db():
         )
     ''')
 
+    # Create indexes for better performance
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_rooms_room_number ON rooms(room_number)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_room_id ON tenants(room_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_name ON tenants(tenant_name)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_tenant_id ON payments(tenant_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(strftime("%Y-%m", payment_date))')
+    
     # Seed rooms if not exists
     existing_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
     if existing_rooms == 0:
@@ -316,7 +350,8 @@ def dashboard():
         arrears = max(0, monthly_rent - effective_paid)
         total_arrears += arrears
     
-    # Get recent tenants with proper balance calculation and days since last payment
+    # Get recent tenants with optimized query
+    current_month = datetime.now().strftime('%Y-%m')
     recent_tenants = conn.execute('''
         SELECT 
             t.tenant_id,
@@ -327,18 +362,18 @@ def dashboard():
             t.last_payment_date,
             r.room_number,
             r.monthly_rent,
-            (
-                SELECT COALESCE(SUM(p2.amount), 0)
-                FROM payments p2
-                WHERE p2.tenant_id = t.tenant_id
-                  AND strftime('%Y-%m', p2.payment_date) = strftime('%Y-%m', 'now')
-            ) as total_payments
+            COALESCE(p.total_payments, 0) as total_payments
         FROM tenants t 
         LEFT JOIN rooms r ON t.room_id = r.room_id 
-        GROUP BY t.tenant_id, t.tenant_name, t.tenant_phone, t.move_in_date, t.credit_balance, t.last_payment_date, r.room_number, r.monthly_rent
+        LEFT JOIN (
+            SELECT tenant_id, SUM(amount) as total_payments
+            FROM payments 
+            WHERE strftime('%Y-%m', payment_date) = ?
+            GROUP BY tenant_id
+        ) p ON t.tenant_id = p.tenant_id
         ORDER BY t.move_in_date DESC 
         LIMIT 5
-    ''').fetchall()
+    ''', (current_month,)).fetchall()
     
     def compute_days_since(d):
         if not d:
@@ -450,14 +485,22 @@ def dashboard():
 @app.route('/rooms')
 @login_required
 def rooms():
+    # Check cache first
+    cached_rooms = get_cached_data('rooms')
+    if cached_rooms:
+        return render_template('rooms.html', rooms=cached_rooms)
+    
     conn = get_db_connection()
     rooms = conn.execute('''
         SELECT r.*, t.tenant_name 
         FROM rooms r 
         LEFT JOIN tenants t ON r.room_id = t.room_id 
-        ORDER BY r.room_number
+        ORDER BY CAST(r.room_number AS INTEGER)
     ''').fetchall()
     conn.close()
+    
+    # Cache the results
+    set_cached_data('rooms', rooms)
     return render_template('rooms.html', rooms=rooms)
 
 @app.route('/rooms/add', methods=['GET', 'POST'])
@@ -473,6 +516,8 @@ def add_room():
             conn.execute('INSERT INTO rooms (room_number, room_type, monthly_rent) VALUES (?, ?, ?)',
                         (room_number, room_type, monthly_rent))
             conn.commit()
+            # Invalidate cache
+            cache['rooms'] = {'data': None, 'timestamp': 0}
             flash('Room added successfully!', 'success')
         except sqlite3.IntegrityError:
             flash('Room number already exists!', 'error')
