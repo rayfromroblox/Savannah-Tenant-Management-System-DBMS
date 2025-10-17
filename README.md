@@ -1,4 +1,4 @@
-# Savannah Apartments – Tenant Management System
+# Tenant Management System
 
 This is a small property/hostel management app built with Flask and SQLite. It helps you keep track of rooms, tenants, and payments without needing spreadsheets or heavy software. There’s a clean dashboard, simple analytics, and a dark/light mode toggle that remembers your preference.
 
