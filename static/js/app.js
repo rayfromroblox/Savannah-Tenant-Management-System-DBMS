@@ -101,13 +101,8 @@ class SavannahApp {
 
     // Handle form submissions with loading states
     handleFormSubmit(event) {
-        const form = event.target;
-        if (form.classList.contains('no-js-handling')) return;
-        
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            this.getModule('form').showLoadingState(submitBtn);
-        }
+        // DISABLED - Let forms submit naturally without any JavaScript interference
+        return;
     }
 
     // Handle link clicks for smooth transitions
@@ -158,10 +153,8 @@ class SavannahApp {
 
     // Add loading states to buttons and forms
     addLoadingStates() {
-        const buttons = document.querySelectorAll('button[type="submit"], .btn[data-loading]');
-        buttons.forEach(button => {
-            this.getModule('form').addLoadingState(button);
-        });
+        // DISABLED - Let forms work naturally without JavaScript interference
+        return;
     }
 
     // Get module instance
@@ -440,12 +433,10 @@ class FormManager {
             }
         }, this.config.debounceDelay), true);
 
-        // Form submission validation
-        form.addEventListener('submit', (e) => {
-            if (!this.validateForm(form)) {
-                e.preventDefault();
-            }
-        });
+        // DISABLED - Let forms submit without JavaScript validation interference
+        // form.addEventListener('submit', (e) => {
+        //     // All validation disabled - let server handle validation
+        // });
     }
 
     validateField(field) {
@@ -563,11 +554,8 @@ class FormManager {
     }
 
     addLoadingState(button) {
-        button.addEventListener('click', () => {
-            if (button.type === 'submit' || button.dataset.loading) {
-                this.showLoadingState(button);
-            }
-        });
+        // DISABLED - Let buttons work naturally without JavaScript interference
+        return;
     }
 
     debounce(func, wait) {
@@ -863,7 +851,13 @@ class APIManager {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (response.status === 404) {
+                    throw new Error('Resource not found');
+                } else if (response.status === 500) {
+                    throw new Error('Server error occurred');
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
             }
 
             const contentType = response.headers.get('content-type');

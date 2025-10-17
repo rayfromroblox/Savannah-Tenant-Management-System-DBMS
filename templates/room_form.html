@@ -10,27 +10,30 @@
     
     <form method="POST">
         <div class="form-group">
-            <label for="room_number" class="form-label">Room Number</label>
-            <select id="room_number" name="room_number" class="form-select" required>
-                <option value="">Select Room Number</option>
-                {% for i in range(1, 25) %}
-                <option value="{{ i }}" {% if room and room.room_number == i|string %}selected{% endif %}>
-                    Room {{ i }}
-                </option>
-                {% endfor %}
+            <label for="room_number" class="form-label">Room Number *</label>
+            <input type="text" id="room_number" name="room_number" class="form-input" 
+                   value="{{ room.room_number if room else '' }}" 
+                   required minlength="1" maxlength="10"
+                   placeholder="Enter room number">
+        </div>
+        
+        <div class="form-group">
+            <label for="room_type" class="form-label">Room Type *</label>
+            <select id="room_type" name="room_type" class="form-select" required>
+                <option value="">Select Room Type</option>
+                <option value="one bedroom" {% if room and room.room_type == 'one bedroom' %}selected{% endif %}>One Bedroom</option>
+                <option value="studio" {% if room and room.room_type == 'studio' %}selected{% endif %}>Studio</option>
+                <option value="bedsitter (big)" {% if room and room.room_type == 'bedsitter (big)' %}selected{% endif %}>Bedsitter (Big)</option>
+                <option value="bedsitter (small)" {% if room and room.room_type == 'bedsitter (small)' %}selected{% endif %}>Bedsitter (Small)</option>
             </select>
         </div>
         
         <div class="form-group">
-            <label for="room_type" class="form-label">Room Type</label>
-            <input type="text" id="room_type" name="room_type" class="form-input" 
-                   value="{{ room.room_type if room else '' }}" readonly>
-        </div>
-        
-        <div class="form-group">
-            <label for="monthly_rent" class="form-label">Monthly Rent (KES)</label>
+            <label for="monthly_rent" class="form-label">Monthly Rent (KES) *</label>
             <input type="number" id="monthly_rent" name="monthly_rent" class="form-input" 
-                   value="{{ room.monthly_rent if room else '' }}" step="0.01" min="0" readonly>
+                   value="{{ room.monthly_rent if room else '' }}" 
+                   required step="0.01" min="0" max="100000"
+                   placeholder="Enter monthly rent">
         </div>
         
         <div class="form-actions">
@@ -39,33 +42,40 @@
         </div>
     </form>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-document.getElementById('room_number').addEventListener('change', function() {
-    const roomNumber = this.value;
-    const roomTypeInput = document.getElementById('room_type');
-    const monthlyRentInput = document.getElementById('monthly_rent');
-    
-    if (roomNumber) {
-        // Fetch room information from the API
-        fetch(`/api/room/${roomNumber}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Room not found');
-                    return;
-                }
-                roomTypeInput.value = data.room_type;
-                monthlyRentInput.value = data.monthly_rent;
-            })
-            .catch(error => {
-                console.error('Error fetching room info:', error);
-                alert('Error fetching room information');
-            });
-    } else {
-        roomTypeInput.value = '';
-        monthlyRentInput.value = '';
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form validation feedback
+    const form = document.querySelector('form[data-validate]');
+    if (form && window.savannahApp) {
+        const formManager = window.savannahApp.getModule('form');
+        if (formManager) {
+            formManager.initValidation(form);
+        }
     }
+
+    // Add loading state to submit button
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton && window.savannahApp) {
+        const formManager = window.savannahApp.getModule('form');
+        if (formManager) {
+            formManager.addLoadingState(submitButton);
+        }
+    }
+
+    // Add success animation on form submission
+    form.addEventListener('submit', function() {
+        if (window.savannahApp) {
+            const toastManager = window.savannahApp.getModule('toast');
+            if (toastManager) {
+                setTimeout(() => {
+                    toastManager.show('Room updated successfully!', 'success');
+                }, 100);
+            }
+        }
+    });
 });
 </script>
 {% endblock %}

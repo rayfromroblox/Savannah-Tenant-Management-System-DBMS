@@ -380,10 +380,10 @@ def dashboard():
             return None
         try:
             d0 = datetime.strptime(d, '%Y-%m-%d').date()
-        except Exception:
+        except ValueError:
             try:
                 d0 = datetime.fromisoformat(d).date()
-            except Exception:
+            except ValueError:
                 return None
         return (date.today() - d0).days
 
@@ -440,10 +440,10 @@ def dashboard():
             return None
         try:
             d0 = datetime.strptime(d, '%Y-%m-%d').date()
-        except Exception:
+        except ValueError:
             try:
                 d0 = datetime.fromisoformat(d).date()
-            except Exception:
+            except ValueError:
                 return None
         return (date.today() - d0).days
 
@@ -542,6 +542,8 @@ def edit_room(room_id):
             conn.execute('UPDATE rooms SET room_number = ?, room_type = ?, monthly_rent = ? WHERE room_id = ?',
                         (room_number, room_type, monthly_rent, room_id))
             conn.commit()
+            # Invalidate cache
+            cache['rooms'] = {'data': None, 'timestamp': 0}
             flash('Room updated successfully!', 'success')
         except sqlite3.IntegrityError:
             flash('Room number already exists!', 'error')
@@ -574,6 +576,9 @@ def delete_room(room_id):
     conn.execute('DELETE FROM rooms WHERE room_id = ?', (room_id,))
     conn.commit()
     conn.close()
+    
+    # Invalidate cache
+    cache['rooms'] = {'data': None, 'timestamp': 0}
     
     flash('Room deleted successfully!', 'success')
     return redirect(url_for('rooms'))
@@ -619,15 +624,34 @@ def add_tenant():
     conn = get_db_connection()
     
     if request.method == 'POST':
-        tenant_name = request.form['tenant_name']
-        tenant_phone = request.form['tenant_phone']
-        room_id = int(request.form['room_id']) if request.form['room_id'] else None
-        move_in_date = request.form['move_in_date']
-        # Enhanced fields (optional)
-        id_number = request.form.get('id_number')
-        relative_name = request.form.get('relative_name')
-        relative_contact = request.form.get('relative_contact')
-        relative_id_number = request.form.get('relative_id_number')
+        # Server-side validation
+        try:
+            tenant_name = request.form['tenant_name'].strip()
+            tenant_phone = request.form['tenant_phone'].strip()
+            room_id = int(request.form['room_id']) if request.form['room_id'] else None
+            move_in_date = request.form['move_in_date']
+            # Enhanced fields (optional)
+            id_number = request.form.get('id_number', '').strip()
+            relative_name = request.form.get('relative_name', '').strip()
+            relative_contact = request.form.get('relative_contact', '').strip()
+            relative_id_number = request.form.get('relative_id_number', '').strip()
+            
+            # Validate required fields
+            if not tenant_name:
+                flash('Tenant name is required!', 'error')
+                return render_template('tenant_form.html', rooms=get_available_rooms())
+            
+            if not tenant_phone:
+                flash('Tenant phone is required!', 'error')
+                return render_template('tenant_form.html', rooms=get_available_rooms())
+                
+            if not move_in_date:
+                flash('Move-in date is required!', 'error')
+                return render_template('tenant_form.html', rooms=get_available_rooms())
+                
+        except (ValueError, KeyError) as e:
+            flash('Invalid form data!', 'error')
+            return render_template('tenant_form.html', rooms=get_available_rooms())
         
         # Check if room is available
         if room_id:
@@ -638,26 +662,41 @@ def add_tenant():
                 conn.close()
                 return render_template('tenant_form.html', rooms=get_available_rooms())
         
-        conn.execute('''
-            INSERT INTO tenants (
-                tenant_name, tenant_phone, room_id, move_in_date,
-                id_number,
-                relative_name, relative_contact, relative_id_number
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            (
-                tenant_name, tenant_phone, room_id, move_in_date,
-                id_number,
-                relative_name, relative_contact, relative_id_number
+        try:
+            conn.execute('''
+                INSERT INTO tenants (
+                    tenant_name, tenant_phone, room_id, move_in_date,
+                    balance, credit_balance, last_payment_date,
+                    first_name, second_name, id_number,
+                    next_of_kin_name, next_of_kin_contact,
+                    relative_name, relative_id_number, relative_contact
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (
+                    tenant_name, tenant_phone, room_id, move_in_date,
+                    0, 0, None,  # balance=0, credit_balance=0, last_payment_date=None
+                    None, None, id_number,  # first_name, second_name, id_number
+                    None, None,  # next_of_kin_name, next_of_kin_contact
+                    relative_name, relative_id_number, relative_contact
+                )
             )
-        )
-        conn.commit()
-        
-        # Update room status
-        update_room_status()
-        
-        flash('Tenant added successfully!', 'success')
-        conn.close()
-        return redirect(url_for('tenants'))
+            conn.commit()
+            
+            # Update room status
+            update_room_status()
+            
+            # Invalidate caches
+            cache['rooms'] = {'data': None, 'timestamp': 0}
+            cache['tenants'] = {'data': None, 'timestamp': 0}
+            
+            flash('Tenant added successfully!', 'success')
+            conn.close()
+            return redirect(url_for('tenants'))
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            flash(f'Error adding tenant: {str(e)}', 'error')
+            return render_template('tenant_form.html', rooms=get_available_rooms())
     
     rooms = get_available_rooms()
     conn.close()
@@ -700,7 +739,7 @@ def edit_tenant(tenant_id):
         return redirect(url_for('tenants'))
     
     tenant = conn.execute('SELECT * FROM tenants WHERE tenant_id = ?', (tenant_id,)).fetchone()
-    rooms = conn.execute('SELECT * FROM rooms ORDER BY room_number').fetchall()
+    rooms = conn.execute('SELECT * FROM rooms ORDER BY CAST(room_number AS INTEGER)').fetchall()
     conn.close()
     
     if not tenant:
@@ -731,7 +770,7 @@ def delete_tenant(tenant_id):
 
 def get_available_rooms():
     conn = get_db_connection()
-    rooms = conn.execute('SELECT * FROM rooms WHERE status = ? ORDER BY room_number', ('vacant',)).fetchall()
+    rooms = conn.execute('SELECT * FROM rooms WHERE status = ? ORDER BY CAST(room_number AS INTEGER)', ('vacant',)).fetchall()
     conn.close()
     return rooms
 
@@ -756,10 +795,36 @@ def add_payment():
     conn = get_db_connection()
     
     if request.method == 'POST':
-        tenant_id = int(request.form['tenant_id'])
-        amount = float(request.form['amount'])
-        payment_date = request.form['payment_date']
-        notes = request.form['notes']
+        # Server-side validation
+        try:
+            tenant_id = int(request.form['tenant_id'])
+            amount = float(request.form['amount'])
+            payment_date = request.form['payment_date']
+            notes = request.form.get('notes', '')
+            
+            # Validate amount
+            if amount <= 0:
+                flash('Payment amount must be greater than 0!', 'error')
+                return redirect(url_for('add_payment'))
+            
+            if amount > 1000000:  # 1 million limit
+                flash('Payment amount too large!', 'error')
+                return redirect(url_for('add_payment'))
+                
+            # Validate date
+            from datetime import datetime
+            try:
+                payment_datetime = datetime.strptime(payment_date, '%Y-%m-%d')
+                if payment_datetime.date() > datetime.now().date():
+                    flash('Payment date cannot be in the future!', 'error')
+                    return redirect(url_for('add_payment'))
+            except ValueError:
+                flash('Invalid payment date format!', 'error')
+                return redirect(url_for('add_payment'))
+                
+        except (ValueError, KeyError) as e:
+            flash('Invalid form data!', 'error')
+            return redirect(url_for('add_payment'))
         
         # Add payment
         conn.execute('INSERT INTO payments (tenant_id, amount, payment_date, notes) VALUES (?, ?, ?, ?)',
@@ -788,6 +853,10 @@ def add_payment():
 
         conn.commit()
         conn.close()
+        
+        # Invalidate relevant caches
+        cache['rooms'] = {'data': None, 'timestamp': 0}
+        cache['tenants'] = {'data': None, 'timestamp': 0}
         
         flash('Payment recorded successfully!', 'success')
         return redirect(url_for('payments'))
@@ -827,6 +896,9 @@ def delete_payment(payment_id):
         # Delete payment
         conn.execute('DELETE FROM payments WHERE payment_id = ?', (payment_id,))
         conn.commit()
+        # Invalidate relevant caches
+        cache['rooms'] = {'data': None, 'timestamp': 0}
+        cache['tenants'] = {'data': None, 'timestamp': 0}
         flash('Payment deleted successfully!', 'success')
     else:
         flash('Payment not found!', 'error')
