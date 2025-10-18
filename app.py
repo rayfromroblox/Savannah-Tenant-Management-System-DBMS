@@ -1,4 +1,3 @@
-# --- Imports and app definition moved to top ---
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import sqlite3
 import os
@@ -9,15 +8,11 @@ import time
 app = Flask(__name__)
 app.secret_key = 'hostel_management_secret_key_2024'
 
-# Simple in-memory cache for performance
 cache = {
     'rooms': {'data': None, 'timestamp': 0},
     'stats': {'data': None, 'timestamp': 0}
 }
-CACHE_DURATION = 30  # seconds
-
-# --- Tenant details JSON endpoint for modal ---
-# (define only once, after app is defined)
+CACHE_DURATION = 30
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -26,7 +21,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Tenant details JSON endpoint for modal ---
 @app.route('/tenant/<int:tenant_id>/details')
 @login_required
 def tenant_details_json(tenant_id):
@@ -44,7 +38,6 @@ def tenant_details_json(tenant_id):
         LEFT JOIN rooms r ON t.room_id = r.room_id
         WHERE t.tenant_id = ?
     ''', (tenant_id,)).fetchone()
-    # Also fetch all payments for this tenant, sorted by date desc
     payments = conn.execute('''
         SELECT amount, payment_date FROM payments WHERE tenant_id = ? ORDER BY payment_date DESC''', (tenant_id,)).fetchall()
     conn.close()
@@ -84,13 +77,11 @@ def currency_filter(value):
         return "KES 0.00"
     return f"KES {value:,.2f}"
 
-# Database configuration
 DATABASE = 'hostel.db'
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE, timeout=20.0)
     conn.row_factory = sqlite3.Row
-    # Performance optimizations
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
     conn.execute('PRAGMA cache_size=10000')
@@ -112,7 +103,6 @@ def set_cached_data(key, data):
 def init_db():
     conn = get_db_connection()
     
-    # Create rooms table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS rooms (
             room_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,7 +113,6 @@ def init_db():
         )
     ''')
     
-    # Create tenants table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS tenants (
             tenant_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,7 +125,6 @@ def init_db():
         )
     ''')
     
-    # Create payments table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS payments (
             payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,7 +136,6 @@ def init_db():
         )
     ''')
     
-    # Create admin table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS admin (
             admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,44 +144,34 @@ def init_db():
         )
     ''')
     
-    # Insert default admin if not exists
     existing_admin = conn.execute('SELECT * FROM admin WHERE username = ?', ('admin',)).fetchone()
     if not existing_admin:
         conn.execute('INSERT INTO admin (username, password) VALUES (?, ?)', ('admin', 'admin123'))
     
-    # --- Safe migrations: extend tenants with new fields if missing ---
     def column_missing(table, column):
         cols = conn.execute(f"PRAGMA table_info({table})").fetchall()
         return all(col['name'] != column for col in cols)
 
-    # credit balance for rollover
     if column_missing('tenants', 'credit_balance'):
         conn.execute('ALTER TABLE tenants ADD COLUMN credit_balance REAL DEFAULT 0')
 
-    # last payment date for countdown
     if column_missing('tenants', 'last_payment_date'):
         conn.execute('ALTER TABLE tenants ADD COLUMN last_payment_date DATE')
 
-    # Enhanced registration fields (stored but not shown on main dashboards)
-    # First/second name no longer used (keep existing columns if already present, but don't add new ones)
     if column_missing('tenants', 'id_number'):
         conn.execute('ALTER TABLE tenants ADD COLUMN id_number TEXT')
-    # Ensure target fields exist: relative_name and relative_contact
     if column_missing('tenants', 'relative_name'):
         conn.execute('ALTER TABLE tenants ADD COLUMN relative_name TEXT')
     if column_missing('tenants', 'relative_contact'):
         conn.execute('ALTER TABLE tenants ADD COLUMN relative_contact TEXT')
     if column_missing('tenants', 'relative_id_number'):
         conn.execute('ALTER TABLE tenants ADD COLUMN relative_id_number TEXT')
-
-    # Backfill: move next_of_kin_* data into relative_* if present
     cols = {c['name'] for c in conn.execute("PRAGMA table_info(tenants)").fetchall()}
     if 'next_of_kin_name' in cols:
         conn.execute('UPDATE tenants SET relative_name = COALESCE(relative_name, next_of_kin_name) WHERE next_of_kin_name IS NOT NULL AND (relative_name IS NULL OR relative_name = "")')
     if 'next_of_kin_contact' in cols and 'relative_contact' in cols:
         conn.execute('UPDATE tenants SET relative_contact = COALESCE(relative_contact, next_of_kin_contact) WHERE next_of_kin_contact IS NOT NULL AND (relative_contact IS NULL OR relative_contact = "")')
 
-    # Tenant stays history table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS tenant_stays (
             stay_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,7 +186,6 @@ def init_db():
         )
     ''')
 
-    # Create indexes for better performance
     conn.execute('CREATE INDEX IF NOT EXISTS idx_rooms_room_number ON rooms(room_number)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_room_id ON tenants(room_id)')
@@ -218,7 +194,6 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(strftime("%Y-%m", payment_date))')
     
-    # Seed rooms if not exists
     existing_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
     if existing_rooms == 0:
         seed_rooms(conn)
@@ -230,7 +205,6 @@ def seed_rooms(conn):
     """Seed the database with 24 rooms with proper types and rents"""
     import random
     
-    # Define room types and their rents
     room_types = {
         'one bedroom': 15000,
         'studio': 12000,
@@ -238,16 +212,13 @@ def seed_rooms(conn):
         'bedsitter (small)': 8000
     }
     
-    # Create list of room assignments (6 of each type)
     room_assignments = []
     for room_type, rent in room_types.items():
-        for _ in range(6):  # 6 rooms of each type
+        for _ in range(6):
             room_assignments.append((room_type, rent))
     
-    # Randomize the order
     random.shuffle(room_assignments)
     
-    # Insert rooms 1-24
     for room_num in range(1, 25):
         room_type, rent = room_assignments[room_num - 1]
         conn.execute('INSERT INTO rooms (room_number, room_type, monthly_rent) VALUES (?, ?, ?)',
@@ -265,12 +236,10 @@ def update_room_status():
     """Update room status based on tenant occupancy"""
     conn = get_db_connection()
     
-    # Get all rooms
     rooms = conn.execute('SELECT room_id FROM rooms').fetchall()
     
     for room in rooms:
         room_id = room['room_id']
-        # Check if room has active tenant
         tenant = conn.execute('SELECT * FROM tenants WHERE room_id = ?', (room_id,)).fetchone()
         
         if tenant:
@@ -319,13 +288,11 @@ def logout():
 def dashboard():
     conn = get_db_connection()
     
-    # Get statistics
     total_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
     occupied_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms WHERE status = ?', ('occupied',)).fetchone()['count']
     vacant_rooms = total_rooms - occupied_rooms
     total_tenants = conn.execute('SELECT COUNT(*) as count FROM tenants').fetchone()['count']
     
-    # Calculate total arrears considering credits and current month payments
     current_month = datetime.now().strftime('%Y-%m')
     arrears_data = conn.execute('''
         SELECT 
@@ -350,7 +317,6 @@ def dashboard():
         arrears = max(0, monthly_rent - effective_paid)
         total_arrears += arrears
     
-    # Get recent tenants with optimized query
     current_month = datetime.now().strftime('%Y-%m')
     recent_tenants = conn.execute('''
         SELECT 
@@ -387,16 +353,13 @@ def dashboard():
                 return None
         return (date.today() - d0).days
 
-    # enrich recent tenants with days_since, net_balance, balance_status for template simplicity
     enriched_recent = []
     for t in recent_tenants:
         item = dict(t)
-        # net_balance = total_payments_for_current_cycle - monthly_rent
         monthly_rent = t['monthly_rent'] or 0
         total_paid = t['total_payments'] or 0
         net_balance = total_paid - monthly_rent
         item['net_balance'] = net_balance
-        # status: credit, paid, arrears
         if net_balance > 0:
             item['balance_status'] = 'credit'
         elif net_balance == 0:
@@ -414,7 +377,6 @@ def dashboard():
         'total_arrears': total_arrears
     }
     
-    # Reminder system: tenants with partial/no payment
     reminders = conn.execute('''
         SELECT 
             t.tenant_id,
@@ -481,7 +443,6 @@ def dashboard():
     # --- End sanity check ---
     return render_template('dashboard.html', stats=stats, recent_tenants=enriched_recent, reminders=reminder_cards)
 
-# Rooms routes
 @app.route('/rooms')
 @login_required
 def rooms():
@@ -583,7 +544,6 @@ def delete_room(room_id):
     flash('Room deleted successfully!', 'success')
     return redirect(url_for('rooms'))
 
-# Tenants routes
 @app.route('/tenants')
 @login_required
 def tenants():
@@ -778,7 +738,6 @@ def get_available_rooms():
     conn.close()
     return rooms
 
-# Payments routes
 @app.route('/payments')
 @login_required
 def payments():
@@ -910,7 +869,6 @@ def delete_payment(payment_id):
     conn.close()
     return redirect(url_for('payments'))
 
-# Analytics routes
 @app.route('/api/room/<room_number>')
 @login_required
 def get_room_info(room_number):
@@ -1025,7 +983,6 @@ def analytics():
                          room_stats=room_stats,
                          monthly_collection_amount=monthly_collection_amount)
 
-# Tenant Details - List and Detail Views
 @app.route('/tenant-details')
 @login_required
 def tenant_details_list():

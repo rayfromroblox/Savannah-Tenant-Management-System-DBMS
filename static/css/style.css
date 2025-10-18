@@ -1,4 +1,3 @@
-/* Tenant table balance coloring */
 .tenant-balance.balance-credit {
     color: #1db954;
     font-weight: 600;
@@ -7,8 +6,6 @@
     color: #e74c3c;
     font-weight: 600;
 }
-/* Custom modal for tenant details */
-/* Tenant details modal styling and animation */
 .tenant-modal-dialog {
     max-width: 700px;
     margin: 1.75rem auto;
@@ -34,7 +31,6 @@
     background: rgba(0,0,0,0.5) !important;
     backdrop-filter: blur(2px);
 }
-/* Slide up/down animation */
 .tenant-modal-in {
     animation-name: tenantModalSlideIn;
 }
@@ -49,7 +45,6 @@
     from { opacity: 1; transform: translateY(0); }
     to { opacity: 0; transform: translateY(60px); }
 }
-/* Reset and base styles */
 * {
     margin: 0;
     padding: 0;
@@ -63,7 +58,6 @@ body {
     background-color: var(--background);
 }
 
-/* Navigation */
 .navbar {
     background-color: var(--brand-primary);
     color: var(--on-brand);
@@ -112,7 +106,6 @@ body {
     background-color: rgba(255,255,255,0.2);
 }
 
-/* Main content */
 .main-content {
     max-width: 1200px;
     margin: 2rem auto;
@@ -121,7 +114,6 @@ body {
     will-change: opacity, transform;
 }
 
-/* Flash messages */
 .flash-messages {
     margin-bottom: 2rem;
 }
@@ -151,7 +143,6 @@ body {
     border: 1px solid var(--flash-info-border);
 }
 
-/* Login page */
 .login-container {
     max-width: 400px;
     margin: 5rem auto;
@@ -168,7 +159,6 @@ body {
     font-size: 2rem;
 }
 
-/* Forms */
 .form-group {
     margin-bottom: 1.5rem;
 }
@@ -268,7 +258,6 @@ body {
     font-size: 0.875rem;
 }
 
-/* Cards */
 .card {
     background: var(--surface);
     border-radius: 8px;
@@ -289,7 +278,6 @@ body {
     color: var(--text-primary);
 }
 
-/* Dashboard stats */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -317,7 +305,6 @@ body {
     font-size: 0.9rem;
 }
 
-/* Tables */
 .table-container {
     background: var(--surface);
     border-radius: 8px;
@@ -354,7 +341,6 @@ body {
     background-color: var(--hover-bg);
 }
 
-/* Status badges */
 .status-badge {
     padding: 0.25rem 0.75rem;
     border-radius: 12px;
@@ -390,13 +376,11 @@ body {
     color: var(--badge-error-text);
 }
 
-/* Action buttons */
 .action-buttons {
     display: flex;
     gap: 0.5rem;
 }
 
-/* Form layout */
 .form-container {
     background: var(--surface);
     padding: 2rem;
@@ -431,7 +415,6 @@ body {
     }
 }
 
-/* Charts */
 .chart-container {
     background: var(--surface);
     padding: 1.5rem;
@@ -447,7 +430,6 @@ body {
     color: var(--text-primary);
 }
 
-/* Responsive */
 @media (max-width: 768px) {
     .nav-container {
         flex-direction: column;
@@ -467,14 +449,12 @@ body {
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
     
-    /* Removed duplicate/nested .table-container rule */
     
     .action-buttons {
         flex-direction: column;
     }
 }
 
-/* Theme variables */
 :root {
     --background: #f8f9fa;
     --surface: #ffffff;
@@ -526,7 +506,6 @@ html.dark {
     --input-bg: #0b0f14;
     --input-border: #2a3642;
     
-    /* Dark theme scrollbar colors */
     --scrollbar-track: #1a242f;
     --scrollbar-thumb: #475569;
     --scrollbar-thumb-hover: #64748b;
@@ -548,7 +527,6 @@ html.dark {
     --badge-error-text: #f4c0c4;
 }
 
-/* Theme toggle button */
 .theme-toggle {
     display: inline-flex;
     align-items: center;
@@ -604,7 +582,6 @@ html.dark {
     transform: rotate(180deg);
 }
 
-/* Show only one icon depending on theme */
 html:not(.dark) .icon-moon { display: none; }
 html.dark .icon-sun { display: none; }
 

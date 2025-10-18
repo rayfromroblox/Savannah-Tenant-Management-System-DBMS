@@ -3,27 +3,24 @@
  * Vanilla JS with modular architecture for Savannah Apartments Management System
  */
 
-// Main Application Class - Performance Optimized
 class SavannahApp {
     constructor() {
         this.modules = new Map();
         this.eventListeners = new Map();
         this.initialized = false;
         this.config = {
-            animationDuration: 200, // Reduced for faster animations
-            toastDuration: 3000,    // Reduced for better UX
-            debounceDelay: 150,     // Reduced for more responsive input
-            apiTimeout: 5000        // Reduced for faster API calls
+            animationDuration: 200,
+            toastDuration: 3000,
+            debounceDelay: 150,
+            apiTimeout: 5000
         };
         
-        // Performance optimizations
         this.rafId = null;
         this.throttleMap = new Map();
         this.debounceMap = new Map();
         this.observerCache = new Map();
     }
 
-    // Initialize the application
     init() {
         if (this.initialized) return;
         
@@ -35,7 +32,6 @@ class SavannahApp {
         console.log('Savannah App initialized successfully');
     }
 
-    // Setup all modules
     setupModules() {
         this.modules.set('toast', new ToastManager(this.config));
         this.modules.set('modal', new ModalManager(this.config));
@@ -46,50 +42,31 @@ class SavannahApp {
         this.modules.set('api', new APIManager(this.config));
     }
 
-    // Bind global event listeners
     bindGlobalEvents() {
-        // Global keyboard shortcuts
         document.addEventListener('keydown', this.handleGlobalKeydown.bind(this));
         
-        // Form submissions
         document.addEventListener('submit', this.handleFormSubmit.bind(this));
         
-        // Link clicks for smooth transitions
         document.addEventListener('click', this.handleLinkClick.bind(this));
     }
 
-    // Initialize components on page load
     initializeComponents() {
-        // Initialize progress bars
         this.initProgressBars();
-        
-        // Initialize countdown timers
         this.initCountdownTimers();
-        
-        // Initialize form validation
         this.initFormValidation();
-        
-        // Initialize modals
         this.initModals();
-        
-        // Add loading states
         this.addLoadingStates();
     }
 
-    // Handle theme toggle (removed to avoid conflicts with base template)
     handleThemeToggle() {
-        // Theme toggle is handled in base.html template
         console.log('Theme toggle handled by base template');
     }
 
-    // Handle global keyboard shortcuts
     handleGlobalKeydown(event) {
-        // Escape key closes modals
         if (event.key === 'Escape') {
             this.getModule('modal').closeAll();
         }
         
-        // Ctrl/Cmd + K for search (if search exists)
         if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
             event.preventDefault();
             const searchInput = document.querySelector('input[type="search"]');
@@ -99,9 +76,7 @@ class SavannahApp {
         }
     }
 
-    // Handle form submissions with loading states
     handleFormSubmit(event) {
-        // DISABLED - Let forms submit naturally without any JavaScript interference
         return;
     }
 
