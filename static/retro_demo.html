@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" class="retro-scanlines">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Demo</title>
+    <link rel="stylesheet" href="/static/css/retro.css">
+</head>
+<body class="retro-body">
+    <div class="retro-container">
+        <header class="retro-header">
+            <div class="retro-title">Savannah Utility <span class="retro-cursor">_</span></div>
+            <div class="retro-subtitle">1990s-inspired light theme demo (design-only)</div>
+        </header>
+
+        <section class="retro-banner" role="status">
+            Heads up: This is a design-only preview. No app logic is affected.
+        </section>
+
+        <section class="retro-panel">
+            <h3>Quick Action</h3>
+            <form class="retro-form" onsubmit="return false;">
+                <label class="retro-label" for="room">Room</label>
+                <select class="retro-select" id="room">
+                    <option>101</option>
+                    <option>102</option>
+                    <option>103</option>
+                </select>
+                <label class="retro-label" for="amount">Amount</label>
+                <input class="retro-input" id="amount" type="number" placeholder="0.00">
+                <button class="retro-button" onclick="retroLog.append('#log', 'Submitted sample action');">Submit</button>
+            </form>
+        </section>
+
+        <section class="retro-panel">
+            <h3>Terminal / Log</h3>
+            <div id="log" class="retro-log"><pre>System ready.
+> Awaiting input...</pre></div>
+        </section>
+    </div>
+
+    <script src="/static/js/retro-log.js"></script>
+</body>
+<!-- Open this at /static/retro_demo.html -->
+</html>
+
+
