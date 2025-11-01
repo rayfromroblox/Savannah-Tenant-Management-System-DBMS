@@ -173,4 +173,111 @@
     .retro-cursor { animation: none; }
 }
 
+/* ============================= */
+/* Map existing app components   */
+/* ============================= */
+
+/* Navbar -> simple util bar */
+.retro-body .navbar {
+    background: transparent;
+    color: var(--fg);
+    border-bottom: 1px dashed var(--fg-dim);
+    box-shadow: none;
+}
+
+.retro-body .nav-title a { color: var(--accent) !important; }
+.retro-body .nav-title::after {
+    content: " _";
+    color: var(--accent);
+    animation: retro-blink 1s steps(1, end) infinite;
+}
+
+.retro-body .nav-link {
+    color: var(--accent);
+    border-bottom: 1px dashed transparent;
+}
+.retro-body .nav-link:hover {
+    background: var(--panel-bg);
+    border-bottom-color: var(--accent);
+}
+
+/* Main content container */
+.retro-body .main-content {
+    background: transparent;
+}
+
+/* Cards -> panels */
+.retro-body .card,
+.retro-body .table-container,
+.retro-body .chart-container,
+.retro-body .form-container {
+    background: var(--panel-bg);
+    border: 1px dashed var(--fg-dim);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.retro-body .card-title,
+.retro-body .chart-title { color: var(--accent); }
+
+/* Tables */
+.retro-body .table th,
+.retro-body .table td {
+    border-bottom: 1px dashed var(--fg-dim);
+}
+.retro-body .table th { color: var(--fg-dim); background: transparent; }
+
+/* Forms */
+.retro-body .form-label { color: var(--fg-dim); }
+.retro-body .form-input,
+.retro-body .form-select,
+.retro-body .form-textarea {
+    background: var(--input-bg);
+    color: var(--fg);
+    border: 1px dashed var(--fg-dim);
+    border-radius: 0;
+    box-shadow: none !important;
+}
+.retro-body .form-input:hover,
+.retro-body .form-select:hover,
+.retro-body .form-textarea:hover {
+    background: var(--input-bg-hover);
+}
+.retro-body .form-input:focus,
+.retro-body .form-select:focus,
+.retro-body .form-textarea:focus { outline: 1px dotted var(--accent); outline-offset: 1px; }
+
+/* Buttons */
+.retro-body .btn,
+.retro-body .btn-secondary,
+.retro-body .btn-danger,
+.retro-body .btn-success {
+    font-family: "Courier New", Courier, monospace;
+    background: var(--input-bg);
+    color: var(--fg);
+    border: 1px dashed var(--fg-dim);
+    border-radius: 0;
+    box-shadow: none;
+}
+.retro-body .btn:hover,
+.retro-body .btn-secondary:hover,
+.retro-body .btn-danger:hover,
+.retro-body .btn-success:hover { background: var(--input-bg-hover); }
+
+/* Flash messages -> banners */
+.retro-body .flash-success,
+.retro-body .flash-error,
+.retro-body .flash-info {
+    background: transparent;
+    border: 1px solid var(--warn);
+    color: var(--warn);
+}
+
+/* Progress bars */
+.retro-body .progress-bar { background: var(--panel-bg); border: 1px dashed var(--fg-dim); }
+.retro-body .progress-fill { background: var(--accent); }
+
+/* Focus visibility */
+.retro-body *:focus { outline: 1px dashed var(--accent); outline-offset: 1px; }
+
 
