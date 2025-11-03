@@ -13,6 +13,7 @@ cache = {
     'stats': {'data': None, 'timestamp': 0}
 }
 CACHE_DURATION = 30
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -87,6 +88,19 @@ def get_db_connection():
     conn.execute('PRAGMA cache_size=10000')
     conn.execute('PRAGMA temp_store=MEMORY')
     return conn
+
+def compute_days_since(d):
+    """Compute days since a given date string"""
+    if not d:
+        return None
+    try:
+        d0 = datetime.strptime(d, '%Y-%m-%d').date()
+    except ValueError:
+        try:
+            d0 = datetime.fromisoformat(d).date()
+        except ValueError:
+            return None
+    return (date.today() - d0).days
 
 def get_cached_data(key):
     """Get data from cache if it's still valid"""
@@ -190,9 +204,12 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_room_id ON tenants(room_id)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_name ON tenants(tenant_name)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_last_payment ON tenants(last_payment_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_tenant_id ON payments(tenant_id)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(strftime("%Y-%m", payment_date))')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenant_stays_tenant_id ON tenant_stays(tenant_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenant_stays_room_id ON tenant_stays(room_id)')
     
     existing_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
     if existing_rooms == 0:
@@ -224,28 +241,23 @@ def seed_rooms(conn):
         conn.execute('INSERT INTO rooms (room_number, room_type, monthly_rent) VALUES (?, ?, ?)',
                     (str(room_num), room_type, rent))
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 def update_room_status():
-    """Update room status based on tenant occupancy"""
+    """Update room status based on tenant occupancy using efficient batch updates"""
     conn = get_db_connection()
     
-    rooms = conn.execute('SELECT room_id FROM rooms').fetchall()
+    # Mark all occupied rooms in one query
+    conn.execute('''
+        UPDATE rooms 
+        SET status = 'occupied' 
+        WHERE room_id IN (SELECT DISTINCT room_id FROM tenants WHERE room_id IS NOT NULL)
+    ''')
     
-    for room in rooms:
-        room_id = room['room_id']
-        tenant = conn.execute('SELECT * FROM tenants WHERE room_id = ?', (room_id,)).fetchone()
-        
-        if tenant:
-            conn.execute('UPDATE rooms SET status = ? WHERE room_id = ?', ('occupied', room_id))
-        else:
-            conn.execute('UPDATE rooms SET status = ? WHERE room_id = ?', ('vacant', room_id))
+    # Mark all vacant rooms in one query
+    conn.execute('''
+        UPDATE rooms 
+        SET status = 'vacant' 
+        WHERE room_id NOT IN (SELECT DISTINCT room_id FROM tenants WHERE room_id IS NOT NULL)
+    ''')
     
     conn.commit()
     conn.close()
@@ -287,13 +299,22 @@ def logout():
 @login_required
 def dashboard():
     conn = get_db_connection()
-    
-    total_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
-    occupied_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms WHERE status = ?', ('occupied',)).fetchone()['count']
-    vacant_rooms = total_rooms - occupied_rooms
-    total_tenants = conn.execute('SELECT COUNT(*) as count FROM tenants').fetchone()['count']
-    
     current_month = datetime.now().strftime('%Y-%m')
+    
+    # Optimize: Get all stats in a single query using CTEs
+    stats_query = conn.execute('''
+        SELECT 
+            (SELECT COUNT(*) FROM rooms) as total_rooms,
+            (SELECT COUNT(*) FROM rooms WHERE status = 'occupied') as occupied_rooms,
+            (SELECT COUNT(*) FROM tenants) as total_tenants
+    ''').fetchone()
+    
+    total_rooms = stats_query['total_rooms']
+    occupied_rooms = stats_query['occupied_rooms']
+    vacant_rooms = total_rooms - occupied_rooms
+    total_tenants = stats_query['total_tenants']
+    
+    # Get arrears data
     arrears_data = conn.execute('''
         SELECT 
             t.tenant_id,
@@ -317,7 +338,7 @@ def dashboard():
         arrears = max(0, monthly_rent - effective_paid)
         total_arrears += arrears
     
-    current_month = datetime.now().strftime('%Y-%m')
+    # Get recent tenants
     recent_tenants = conn.execute('''
         SELECT 
             t.tenant_id,
@@ -340,18 +361,6 @@ def dashboard():
         ORDER BY t.move_in_date DESC 
         LIMIT 5
     ''', (current_month,)).fetchall()
-    
-    def compute_days_since(d):
-        if not d:
-            return None
-        try:
-            d0 = datetime.strptime(d, '%Y-%m-%d').date()
-        except ValueError:
-            try:
-                d0 = datetime.fromisoformat(d).date()
-            except ValueError:
-                return None
-        return (date.today() - d0).days
 
     enriched_recent = []
     for t in recent_tenants:
@@ -396,18 +405,6 @@ def dashboard():
         ORDER BY t.tenant_name
     ''').fetchall()
     conn.close()
-
-    def compute_days_since(d):
-        if not d:
-            return None
-        try:
-            d0 = datetime.strptime(d, '%Y-%m-%d').date()
-        except ValueError:
-            try:
-                d0 = datetime.fromisoformat(d).date()
-            except ValueError:
-                return None
-        return (date.today() - d0).days
 
     reminder_cards = []
     for r in reminders:
@@ -571,7 +568,6 @@ def tenants():
             ) + COALESCE(t.credit_balance, 0))) as balance
         FROM tenants t 
         LEFT JOIN rooms r ON t.room_id = r.room_id 
-        GROUP BY t.tenant_id, t.tenant_name, t.tenant_phone, t.move_in_date, t.last_payment_date, r.room_number, r.monthly_rent
         ORDER BY t.tenant_name
     ''').fetchall()
     tenants = [dict(row) for row in tenants_rows]
@@ -646,7 +642,6 @@ def add_tenant():
             
             # Invalidate caches
             cache['rooms'] = {'data': None, 'timestamp': 0}
-            cache['tenants'] = {'data': None, 'timestamp': 0}
             
             flash('Tenant added successfully!', 'success')
             conn.close()
@@ -725,7 +720,6 @@ def delete_tenant(tenant_id):
     
     # Invalidate relevant caches
     cache['rooms'] = {'data': None, 'timestamp': 0}
-    cache['tenants'] = {'data': None, 'timestamp': 0}
     
     conn.close()
     
@@ -819,8 +813,6 @@ def add_payment():
         
         # Invalidate relevant caches
         cache['rooms'] = {'data': None, 'timestamp': 0}
-        cache['tenants'] = {'data': None, 'timestamp': 0}
-        
         flash('Payment recorded successfully!', 'success')
         return redirect(url_for('payments'))
     
@@ -861,7 +853,6 @@ def delete_payment(payment_id):
         conn.commit()
         # Invalidate relevant caches
         cache['rooms'] = {'data': None, 'timestamp': 0}
-        cache['tenants'] = {'data': None, 'timestamp': 0}
         flash('Payment deleted successfully!', 'success')
     else:
         flash('Payment not found!', 'error')
@@ -910,7 +901,6 @@ def analytics():
             ) as total_payments
         FROM tenants t 
         LEFT JOIN rooms r ON t.room_id = r.room_id 
-        GROUP BY t.tenant_id, t.tenant_name, t.credit_balance, t.last_payment_date, t.tenant_phone, t.move_in_date, r.room_number, r.monthly_rent
         ORDER BY t.tenant_name
     ''').fetchall()
     
