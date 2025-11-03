@@ -204,9 +204,12 @@ def init_db():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_room_id ON tenants(room_id)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_name ON tenants(tenant_name)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenants_last_payment ON tenants(last_payment_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_tenant_id ON payments(tenant_id)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(strftime("%Y-%m", payment_date))')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenant_stays_tenant_id ON tenant_stays(tenant_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_tenant_stays_room_id ON tenant_stays(room_id)')
     
     existing_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
     if existing_rooms == 0:
@@ -296,13 +299,22 @@ def logout():
 @login_required
 def dashboard():
     conn = get_db_connection()
-    
-    total_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms').fetchone()['count']
-    occupied_rooms = conn.execute('SELECT COUNT(*) as count FROM rooms WHERE status = ?', ('occupied',)).fetchone()['count']
-    vacant_rooms = total_rooms - occupied_rooms
-    total_tenants = conn.execute('SELECT COUNT(*) as count FROM tenants').fetchone()['count']
-    
     current_month = datetime.now().strftime('%Y-%m')
+    
+    # Optimize: Get all stats in a single query using CTEs
+    stats_query = conn.execute('''
+        SELECT 
+            (SELECT COUNT(*) FROM rooms) as total_rooms,
+            (SELECT COUNT(*) FROM rooms WHERE status = 'occupied') as occupied_rooms,
+            (SELECT COUNT(*) FROM tenants) as total_tenants
+    ''').fetchone()
+    
+    total_rooms = stats_query['total_rooms']
+    occupied_rooms = stats_query['occupied_rooms']
+    vacant_rooms = total_rooms - occupied_rooms
+    total_tenants = stats_query['total_tenants']
+    
+    # Get arrears data
     arrears_data = conn.execute('''
         SELECT 
             t.tenant_id,
@@ -326,7 +338,7 @@ def dashboard():
         arrears = max(0, monthly_rent - effective_paid)
         total_arrears += arrears
     
-    current_month = datetime.now().strftime('%Y-%m')
+    # Get recent tenants
     recent_tenants = conn.execute('''
         SELECT 
             t.tenant_id,
